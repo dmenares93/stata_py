@@ -1,2 +1,2 @@
 # stata_py
-common stata commands for python
+common stata commands for python.
