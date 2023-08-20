@@ -1,7 +1,7 @@
 
 import pandas as pd
 from typing import Union, List
-from  .control import evaluate_condition
+from  control import evaluate_condition
 from typing import Union, List
 import re
 import numpy as np
@@ -17,6 +17,7 @@ def tab(df: pd.DataFrame,
         missing: bool = False,
         total: bool = False,
         if_stata: str = None,
+        percent: str = None,
         w: pd.Series = None) -> pd.DataFrame:
  
     """
@@ -31,6 +32,7 @@ def tab(df: pd.DataFrame,
         missing: bool = False, to handle missing values.
         total: bool = False, to add the total.
         if_stata: str = None, control conditions.
+        percent: str = None, control mode percentage with: col, row or cell .
         w: pd.Series = None, expansion factor.
     Returns
     -------
@@ -103,8 +105,19 @@ def tab(df: pd.DataFrame,
     # Case when col contains two strings
     if len(col) == 2:
         result = pd.crosstab(df[col[0]], df[col[1]])
-        # Pendiente....
-
+        
+        # Handle the reset_index and sort options
+        if percent == "col":     
+            result =  result.div(result.sum(axis=0),axis = 1)          
+        if percent == "row":
+            result =  result.div(result.sum(axis=1),axis = 0)
+        if percent == "cell":
+            result =  result/result.sum().sum()
+    
+        for col in result.columns:
+            if result[col].dtype == 'float64':
+                result[col] = result[col].round(round_decimals)
+        
     return result
 
 

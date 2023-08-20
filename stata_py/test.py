@@ -39,6 +39,9 @@ print(t)
 
 
 
+tab(df,"country")
 
+r = tab(df,["country","continent"])
 
+tab(df,["country","continent"],percent="cell")
 
