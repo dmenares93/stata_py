@@ -2,10 +2,8 @@
 import pandas as pd
 from typing import Union, List
 from  control import evaluate_condition
-from typing import Union, List
-import re
-import numpy as np
-
+from openpyxl.styles import Border, Side, Alignment, PatternFill, Font
+from  tools import dic_stats
 
 
 def tab(df: pd.DataFrame, 
@@ -21,23 +19,48 @@ def tab(df: pd.DataFrame,
         w: pd.Series = None) -> pd.DataFrame:
  
     """
-    Function that replicates the tab function.
+    Function that replicates the tabulation function, providing a table with counts and percentages.
+
+    Parameters
     ----------
-        df: pd.DataFrame, dataframe to evaluate the tab function.
-        col: Union[str, List[str]], variables from df to tabulate.
-        nofreq: bool = False, to compute frequencies.
-        sort: bool = False, to sort by frequencies.
-        round_decimals: int = 2, to round the results.
-        reset_index: bool = True, to delete the index of variables.
-        missing: bool = False, to handle missing values.
-        total: bool = False, to add the total.
-        if_stata: str = None, control conditions.
-        percent: str = None, control mode percentage with: col, row or cell .
-        w: pd.Series = None, expansion factor.
+    df : pd.DataFrame
+        The dataframe containing the data to be tabulated.
+    col : Union[str, List[str]]
+        Column(s) from df to tabulate. Either a single string or a list of one or two strings.
+    nofreq : bool, optional (default=False)
+        If False, frequencies are computed; if True, frequencies are not computed.
+    sort : bool, optional (default=False)
+        If True, the results are sorted by frequencies.
+    round_decimals : int, optional (default=2)
+        Number of decimals to which the results are rounded.
+    reset_index : bool, optional (default=True)
+        If True, deletes the index of variables.
+    missing : bool, optional (default=False)
+        If True, handles missing values.
+    total : bool, optional (default=False)
+        If True, adds the total.
+    if_stata : str, optional (default=None)
+        Control conditions, following the syntax used in Stata.
+    percent : str, optional (default=None)
+        Control mode percentage with the options: "col", "row", or "cell".
+    w : pd.Series, optional (default=None)
+        Expansion factor, typically used for weighted survey data.
+
     Returns
     -------
     pd.DataFrame
-        table with the tabulation results.
+        Table with the tabulation results. Contains counts and percentages based on the given parameters.
+
+    Raises
+    ------
+    TypeError
+        If df is not a DataFrame or col is not a string or a list of one or two strings.
+
+    Notes
+    -----
+    - If w is provided, each value in the specified col is multiplied by the corresponding value in w.
+    - The if_stata parameter allows for complex conditions to filter the DataFrame before tabulation.
+    - The percent parameter controls how percentages are computed: by column ("col"), by row ("row"), or by cell ("cell").
     """
     
     
@@ -121,59 +144,6 @@ def tab(df: pd.DataFrame,
     return result
 
 
-def dic_stats(stats: str, 
-              oper: list) -> dict:
-    
-    """
-    Function that translates stats from the tabulate to a dictionary for evaluation in agg.
-    ----------
-        stats: str, stats instructions from the table command.
-        oper: list, list with identification of the operations handled in
-            stats from the table command.
-    Returns
-    -------
-    dict
-        Dictionary with the transcription of table stats for evaluation in agg.
-    """
-    
-    oper = [re.sub("p1/p100", 'p[1-9]|p[1-9][0-9]|p100', item) for item in oper]
-    # Create a regular expression that matches any of the operators and splits the text into segments
-    pattern = r'\b(?:' + '|'.join(oper) + r')\b'
-    segments = re.split(pattern, stats)
-    # Create a list of operators in the order they appear in the text
-    operators = re.findall(pattern, stats)
-    # Create the result dictionary
-    result_dict = {}
-    for op, col in zip(operators, segments[1:]):
-        # Remove extra spaces and split the columns into a list
-        col = col.strip().split()
-        # Assign the columns to the operator in the result dictionary
-        result_dict[op] = col
-    
-    # Create the inverse dictionary
-    inv_dict = {}
-    for op, cols in result_dict.items():
-        for c in cols:
-            if c in inv_dict:
-                inv_dict[c].append(op)
-            else:
-                inv_dict[c] = [op]
-                
-    # Itera sobre las claves y valores del diccionario para crear funcion de percentil
-    for key, values in inv_dict.items():
-        new_values = []
-        for value in values:
-            # Si el valor empieza con 'p', extrae el número y crea una función lambda para el percentil
-            if value.startswith('p'):
-                percentile_value = int(value[1:])
-                new_values.append(lambda x: np.percentile(x, q=percentile_value))
-            else:
-                new_values.append(value)
-        # Actualiza los valores en el diccionario
-        inv_dict[key] = new_values
-        
-    return inv_dict
-
 
 def table(df: pd.DataFrame, 
           var: Union[str, List[str]], 
@@ -184,18 +154,41 @@ def table(df: pd.DataFrame,
           w: pd.Series = None) -> pd.DataFrame:
 
     """
-    Function that replicates the table function.
+    Generates a table that computes various statistics based on the given variables.
+
+    Parameters
     ----------
-        df: pd.DataFrame, dataframe to evaluate the tab function.
-        var: Union[str, List[str]], variables from df to tabulate.
-        pivot: bool = True, to transpose the table results.
-        round_decimals: int = 2, to round the results.
-        if_stata: str = None, control conditions.
-        w: pd.Series = None, expansion factor.
+    df : pd.DataFrame
+        Dataframe on which to evaluate the function.
+    var : Union[str, List[str]]
+        Variables from df to tabulate. Can be a string or a list of one or two strings.
+    stats : str
+        Statistics to be calculated, must match the available operations.
+    pivot : bool, optional (default=True)
+        If True, transposes the table results (useful for cross-tabulations).
+    round_decimals : int, optional (default=2)
+        Number of decimal places to round the results to.
+    if_stata : str, optional (default=None)
+        Control conditions, following the syntax used in Stata.
+    w : pd.Series, optional (default=None)
+        Expansion factor, typically used in survey-weighted data.
+
     Returns
     -------
     pd.DataFrame
-        table with the tabulation results.
+        Table with the tabulation results, including the requested statistics.
+
+    Raises
+    ------
+    TypeError
+        If df is not a DataFrame or var is not a string or a list of one or two strings.
+
+    Notes
+    -----
+    - Available statistics include: sum, mean, median, minimum, maximum, product, standard deviation, variance, count, number of unique elements, first and last non-null element, percentiles.
+    - The if_stata parameter allows complex conditions to filter the DataFrame before tabulation.
+    - If w is provided, it is used to weight the calculated statistics.
+
     """
     
     # Check if the df is a pandas DataFrame
@@ -273,18 +266,25 @@ def count(df: pd.DataFrame,
           ) ->int:
 
     """
-    Function that replicates the table function.
+    Returns the count of rows in the DataFrame, optionally filtered by a condition.
+
+    Parameters
     ----------
-        df: pd.DataFrame, dataframe to evaluate the tab function.
-        var: Union[str, List[str]], variables from df to tabulate.
-        pivot: bool = True, to transpose the table results.
-        round_decimals: int = 2, to round the results.
-        if_stata: str = None, control conditions.
-        w: pd.Series = None, expansion factor.
+    df : pd.DataFrame
+        The DataFrame for which to count the rows.
+    if_stata : str, optional (default=None)
+        Control conditions to filter the DataFrame before counting rows, following the syntax used in Stata.
+
     Returns
     -------
-    pd.DataFrame
-        table with the tabulation results.
+    int
+        Count of rows in the DataFrame after applying any specified conditions.
+
+    Notes
+    -----
+    - The if_stata parameter allows for complex conditions to filter the DataFrame before counting rows.
+    - If no conditions are specified, the function returns the total number of rows in the DataFrame.
+
     """
     
     # Handle missing if_stata condition
@@ -294,3 +294,84 @@ def count(df: pd.DataFrame,
     n = len(df)
     
     return n
+
+
+
+def to_excel(data: Union[pd.DataFrame, 
+                  List[pd.DataFrame]], path: str, 
+                  sheet_names: List[str] = None) -> None:
+    """
+    Function to write one or multiple DataFrames to an Excel file with custom styling.
+    ----------
+    data: Union[pd.DataFrame, List[pd.DataFrame]]
+        DataFrame or a list of DataFrames that will be written to the Excel file.
+    path: str
+        Full path to the Excel file where the data will be written.
+    sheet_names: List[str], optional
+        List of names for the sheets within the Excel file. If omitted, sheets will be named as 'Sheet1', 'Sheet2', etc.
+
+    Returns
+    -------
+    None
+        The function does not return any value but saves the Excel file to the specified location.
+
+    Notes
+    -----
+    The function applies custom styling to the cells, including thin borders, a maximum column width of 25,
+    and blue fill with white font in the first row and first column. The function uses the 'openpyxl' engine
+    for writing the Excel file.
+    """
+    
+    # If a single DataFrame is passed, convert it into a list with one element
+    if isinstance(data, pd.DataFrame):
+        data = [data]
+
+    # Create an Excel writer using Pandas
+    writer = pd.ExcelWriter(path, engine='openpyxl')
+
+    # Define border style
+    thin_border = Border(left=Side(style='thin'), 
+                         right=Side(style='thin'), 
+                         top=Side(style='thin'), 
+                         bottom=Side(style='thin'))
+
+    # Maximum column width
+    max_column_width = 25
+
+    # Define fill for header row and second column
+    blue_fill = PatternFill(start_color="1F4E78",
+                            end_color="1F4E78",
+                            fill_type="solid")
+    
+    white_font = Font(color="FFFFFF")
+
+    # Write each DataFrame to a different sheet
+    for i, df in enumerate(data):
+        # Use the custom sheet name if provided, otherwise use a default name
+        sheet_name = sheet_names[i] if sheet_names and i < len(sheet_names) else 'Sheet' + str(i+1)
+        df.to_excel(writer, sheet_name=sheet_name)
+
+        # Get the sheet to apply styles
+        worksheet = writer.sheets[sheet_name]
+
+        # Apply styles to all cells, adjust column width, and set alignment
+        for col_idx, column in enumerate(worksheet.columns):
+            max_length = max(len(str(cell.value)) for cell in column)
+            column_width = min(max_length + 2, max_column_width)
+            worksheet.column_dimensions[column[0].column_letter].width = column_width
+
+            alignment = Alignment(horizontal='left') if col_idx == 0 else Alignment(horizontal='right')
+
+            for row_idx, cell in enumerate(column):
+                cell.border = thin_border
+                cell.alignment = alignment
+
+                # Apply blue fill and white font to first row and second column
+                if row_idx == 0 or col_idx == 0:
+                    cell.fill = blue_fill
+                    cell.font = white_font
+
+    # Save the Excel file
+    writer.save()
+
+    
