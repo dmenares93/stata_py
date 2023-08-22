@@ -7,7 +7,7 @@ This library contains a collection of functions designed to make working with pa
 Open a terminal and run:
 
 ```bash
-pip install stata_py
+pip install git+https://github.com/dmenares93/stata_py
 ```
 
 ## Functions
