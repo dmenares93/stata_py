@@ -3,7 +3,7 @@ import pandas as pd
 from typing import Union, List
 from  .control import evaluate_condition
 from openpyxl.styles import Border, Side, Alignment, PatternFill, Font
-from  tools import dic_stats
+from  .tools import dic_stats
 
 
 def tab(df: pd.DataFrame, 
