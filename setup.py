@@ -21,7 +21,6 @@ setup(
         'numpy',
         'pandas',
     ],
-    python_requires='>=3.11',
 )
 
 
